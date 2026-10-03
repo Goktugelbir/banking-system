@@ -1,0 +1,114 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: core-banking
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/bank}
+    username: ${DB_USER:bank}
+    password: ${DB_PASSWORD:bank}
+    hikari:
+      maximum-pool-size: 30
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9094}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties:
+        enable.idempotence: true
+    consumer:
+      group-id: fraud-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+bank:
+  security:
+    # DEMO DEFAULT - deliberately public so `docker compose up` works out of the box.
+    # Production: set JWT_SECRET (Base64, >= 256 bit), e.g. `openssl rand -base64 32`.
+    jwt-secret: ${JWT_SECRET:ZGV2LW9ubHktc2VjcmV0LWNoYW5nZS1tZS1pbi1wcm9kdWN0aW9uLTEyMzQ1Njc4OTA=}
+    jwt-ttl: 1h
+  # DEMO DEFAULT admin seeded on first start; set ADMIN_EMAIL / ADMIN_PASSWORD outside local dev.
+  admin:
+    email: ${ADMIN_EMAIL:admin@bank.local}
+    password: ${ADMIN_PASSWORD:admin12345}
+  locking:
+    # PESSIMISTIC (SELECT ... FOR UPDATE) or OPTIMISTIC (@Version + retry)
+    mode: ${LOCKING_MODE:PESSIMISTIC}
+    optimistic-max-attempts: 30
+  outbox:
+    topic: bank.transactions
+    poll-interval-ms: 500
+    batch-size: 100
+  fx:
+    # live: open.er-api.com (fiat) + CoinGecko (crypto); static: fixed rates for offline/dev/tests
+    provider: ${FX_PROVIDER:live}
+    fiat-url: https://open.er-api.com/v6/latest/USD
+    crypto-url: https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd
+    cache-ttl: 30s
+    max-staleness: 15m
+    quote-ttl: 30s
+    spread: 0.005
+  eft:
+    external-bank-url: ${EXTERNAL_BANK_URL:http://localhost:8081}
+    timeout: 2s
+    recovery-after: 30s
+  fraud:
+    enabled: true
+    velocity-max-transfers: 3
+    velocity-window: 5m
+    night-start-hour: 2
+    night-end-hour: 5
+    zone: Europe/Istanbul
+    # thresholds per currency
+    night-high-amount: { TRY: 10000, USD: 500, EUR: 500, GBP: 400, BTC: 0.01, ETH: 0.2 }
+    new-payee-high-amount: { TRY: 5000, USD: 250, EUR: 250, GBP: 200, BTC: 0.005, ETH: 0.1 }
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      fxProvider:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true
+      externalBank:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 60
+        wait-duration-in-open-state: 20s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method

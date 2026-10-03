@@ -1,0 +1,19 @@
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+
+bank:
+  fx:
+    provider: static
+  outbox:
+    poll-interval-ms: 100
+  fraud:
+    # The Kafka fraud listener only runs in FraudDetectionIT, so other tests are not frozen mid-run.
+    enabled: false
+
+logging:
+  level:
+    org.apache.kafka: WARN
+    kafka: WARN
+    org.testcontainers: INFO

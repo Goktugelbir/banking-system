@@ -1,0 +1,18 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: external-bank
+
+external-bank:
+  # 20% of calls answer slower than the core bank's 2s timeout
+  timeout-rate: ${TIMEOUT_RATE:0.2}
+  reject-rate: ${REJECT_RATE:0.1}
+  slow-response-ms: ${SLOW_RESPONSE_MS:5000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
