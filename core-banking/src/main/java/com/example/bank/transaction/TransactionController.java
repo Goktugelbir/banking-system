@@ -83,7 +83,7 @@ public class TransactionController {
     public List<TransactionResponse> history(@AuthenticationPrincipal AuthUser user, @PathVariable Long accountId,
                                              @RequestParam(defaultValue = "50") int limit) {
         accounts.get(user, accountId);
-        return transactions.findByAccount(accountId, PageRequest.of(0, Math.min(limit, 500))).stream()
+        return transactions.findByAccount(accountId, PageRequest.of(0, Math.clamp(limit, 1, 500))).stream()
                 .map(TransactionResponse::of).toList();
     }
 }

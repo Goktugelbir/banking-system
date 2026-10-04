@@ -44,6 +44,20 @@ class SecurityIT extends AbstractIntegrationTest {
     }
 
     @Test
+    void nonPositiveLimitIsClampedInsteadOfFailing() throws Exception {
+        String alice = register();
+        long account = json.readTree(mvc.perform(post("/api/accounts").header("Authorization", alice)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"currency\":\"TRY\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString()).get("id").asLong();
+
+        mvc.perform(get("/api/accounts/" + account + "/statement?limit=0").header("Authorization", alice))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/accounts/" + account + "/transactions?limit=-5").header("Authorization", alice))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void anonymousIsRejected() throws Exception {
         mvc.perform(get("/api/accounts")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/accounts").header("Authorization", "Bearer not-a-jwt"))

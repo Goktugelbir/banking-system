@@ -56,7 +56,7 @@ public class AccountService {
     @Transactional(readOnly = true)
     public List<LedgerEntry> statement(AuthUser user, Long accountId, int limit) {
         get(user, accountId);
-        return ledger.findByAccountIdOrderByIdDesc(accountId, PageRequest.of(0, Math.min(limit, 500)));
+        return ledger.findByAccountIdOrderByIdDesc(accountId, PageRequest.of(0, Math.clamp(limit, 1, 500)));
     }
 
     /** Used by fraud detection and admins. Status changes take the row lock like any balance change. */
